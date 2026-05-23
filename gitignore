@@ -1,0 +1,18 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 環境変数（APIキーを誤ってコミットしないために）
+.env
+.env.local
+.env.*.local
+
+# ログ・キャッシュ
+*.log
+node_modules/
