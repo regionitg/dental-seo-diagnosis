@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>歯科医院 AI診断ツール</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'BIZ UDPGothic', sans-serif; background: #F7F9FC; color: #334155; line-height: 1.6; }
@@ -75,16 +74,7 @@ input:focus { border-color: #93C5FD; box-shadow: 0 0 0 3px rgba(59,130,246,0.15)
 
 .actions { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 
-/* QRコード表示エリア */
-.qr-section { text-align: center; margin-top: 8px; }
-.qr-section .qr-desc { font-size: 12px; color: #64748B; margin-top: 8px; }
-#qrcode-display { display: inline-block; padding: 12px; background: #fff; border-radius: 12px; border: 2px solid #E2E8F0; }
-#qrcode-display canvas, #qrcode-display img { display: block; }
 
-/* QR URL表示 */
-.qr-url-box { margin-top: 10px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; font-size: 11px; color: #64748B; word-break: break-all; }
-.qr-url-box a { color: #2563EB; text-decoration: none; }
-.qr-unavailable { font-size: 13px; color: #94A3B8; padding: 16px; }
 
 .footer { text-align: center; font-size: 11px; color: #CBD5E1; padding: 16px 0; }
 
@@ -96,8 +86,8 @@ input:focus { border-color: #93C5FD; box-shadow: 0 0 0 3px rgba(59,130,246,0.15)
   html, body { background: #fff; margin: 0; padding: 0; font-size: 10px; line-height: 1.4; }
   .no-print { display: none !important; }
 
-  .print-copy { page-break-inside: avoid; padding: 0; margin-bottom: 6mm; }
-  .print-copy + .print-copy { border-top: 1.5px dashed #94A3B8; padding-top: 4mm; }
+  .print-copy { page-break-after: always; padding: 0; margin: 0; }
+  .print-copy:last-child { page-break-after: auto; }
 
   .card { box-shadow: none; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 6px; }
   .card-body { padding: 8px 12px; }
@@ -120,10 +110,6 @@ input:focus { border-color: #93C5FD; box-shadow: 0 0 0 3px rgba(59,130,246,0.15)
   .score-bar-row { margin-bottom: 4px; gap: 6px; }
   .score-bar-label { font-size: 9px; width: 75px; }
   .score-bar-num { font-size: 10px; }
-
-  .print-qr-wrap { text-align: center; margin-top: 4px; }
-  .print-qr-wrap img, .print-qr-wrap canvas { width: 70px !important; height: 70px !important; }
-  .print-qr-label { font-size: 7px; color: #64748B; margin-top: 2px; }
 
   .footer { display: none; }
 }
@@ -229,16 +215,6 @@ input:focus { border-color: #93C5FD; box-shadow: 0 0 0 3px rgba(59,130,246,0.15)
       </div>
     </div>
 
-    <!-- QRコード表示 -->
-    <div class="card">
-      <div class="card-body qr-section">
-        <div class="section-title">📱 この診断結果を共有</div>
-        <div id="qrcode-display"></div>
-        <p class="qr-desc" id="qr-desc"></p>
-        <div class="qr-url-box hidden" id="qr-url-box"></div>
-      </div>
-    </div>
-
     <div class="actions no-print">
       <button class="btn-outline" onclick="printReport()">🖨️ 印刷 / PDF保存（2部）</button>
       <button class="btn-gradient" onclick="resetForm()">🔄 新しい診断</button>
@@ -305,9 +281,6 @@ function resetForm() {
   document.getElementById('input-card').classList.remove('hidden');
   document.getElementById('print-area').classList.add('hidden');
   document.getElementById('print-area').innerHTML = '';
-  document.getElementById('qrcode-display').innerHTML = '';
-  document.getElementById('qr-url-box').classList.add('hidden');
-  document.getElementById('qr-url-box').innerHTML = '';
   hideError();
 }
 
@@ -416,133 +389,15 @@ function animateBars() {
   }, 200);
 }
 
-/* ===== QRコード生成（現在のページURL方式） ===== */
-function generateQR(clinicName, area, totalScore, scores, summaryText, improvementText) {
-  const container = document.getElementById('qrcode-display');
-  const descEl = document.getElementById('qr-desc');
-  const urlBox = document.getElementById('qr-url-box');
-  container.innerHTML = '';
-  urlBox.classList.add('hidden');
-  urlBox.innerHTML = '';
 
-  const currentURL = window.location.href;
-
-  // ローカルファイル（file://）かどうか判定
-  const isLocalFile = currentURL.startsWith('file://');
-
-  if (isLocalFile) {
-    // ローカルファイルの場合：テキスト形式のサマリーをQR化
-    const scoreLine = scores.map(s => s.label + ': ' + s.val + '/100').join(' | ');
-    const qrText = [
-      '🦷 AI総合診断レポート',
-      clinicName,
-      '総合スコア: ' + totalScore + '/100',
-      scoreLine,
-      '【総合評価】' + summaryText,
-      '【改善ポイント】' + improvementText
-    ].join('\n');
-
-    new QRCode(container, {
-      text: qrText.substring(0, 500), // QRコードの上限に合わせてトリミング
-      width: 200,
-      height: 200,
-      colorDark: '#1A365D',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.L
-    });
-    descEl.textContent = '診断結果のサマリーをQR化しました（ローカルファイルモード）';
-    urlBox.innerHTML = '💡 GitHub Pages などにデプロイすると、診断結果ページのURLをそのままQRにできます。';
-    urlBox.classList.remove('hidden');
-
-  } else {
-    // デプロイ済み環境：スコア数値のみをパラメータに含めた短縮URLをQR化
-    const seoVal = scores.find(s => s.label === '検索順位')?.val || 0;
-    const reviewVal = scores.find(s => s.label === 'クチコミ・評判')?.val || 0;
-    const specialtyVal = scores.find(s => s.label === '専門性')?.val || 0;
-
-    const params = new URLSearchParams({
-      c: clinicName,
-      a: area,
-      t: totalScore,
-      s: seoVal,
-      r: reviewVal,
-      sp: specialtyVal
-    });
-
-    const shareURL = window.location.origin + window.location.pathname + '?' + params.toString();
-
-    new QRCode(container, {
-      text: shareURL,
-      width: 200,
-      height: 200,
-      colorDark: '#1A365D',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-
-    descEl.textContent = 'QRコードをスマホで読み取ると、この診断結果ページが開きます';
-    urlBox.innerHTML = '🔗 共有URL: <a href="' + shareURL + '" target="_blank">' + shareURL + '</a>';
-    urlBox.classList.remove('hidden');
-  }
-}
-
-/* ===== URLパラメータから診断結果を復元（共有リンク対応） ===== */
-function loadFromURLParams() {
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has('c') || !params.has('t')) return;
-
-  const clinicName = params.get('c') || '';
-  const area = params.get('a') || '';
-  const totalScore = parseInt(params.get('t')) || 0;
-  const seoScore = parseInt(params.get('s')) || 0;
-  const reviewScore = parseInt(params.get('r')) || 0;
-  const specialtyScore = parseInt(params.get('sp')) || 0;
-  const summaryText = '';
-  const improvementText = '';
-
-  const today = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
-  const dateStr = '診断日: ' + today;
-  const fullName = area ? area + ' ' + clinicName : clinicName;
-
-  document.getElementById('report-clinic-name').textContent = fullName;
-  document.getElementById('report-date').textContent = dateStr;
-
-  const totalDonut = createDonut(totalScore, '#1A365D', '', 140);
-  document.getElementById('total-donut').innerHTML = totalDonut.html;
-
-  const scores = [
-    { label: 'クチコミ・評判', val: reviewScore, color: '#16A34A' },
-    { label: '検索順位', val: seoScore, color: '#2563EB' },
-    { label: '専門性', val: specialtyScore, color: '#D97706' }
-  ];
-  const donuts = scores.map(s => createDonut(s.val, s.color, s.label, 160));
-  document.getElementById('score-donuts').innerHTML = donuts.map(d => d.html).join('');
-  document.getElementById('score-bars').innerHTML = scores.map(s => createScoreBar(s.label, s.val, s.color)).join('');
-  document.getElementById('summary-text').textContent = summaryText;
-  document.getElementById('improvement-text').textContent = improvementText;
-
-  window._lastDiagnosisData = { totalScore, scores };
-
-  document.getElementById('results-section').classList.remove('hidden');
-  document.getElementById('input-card').classList.add('hidden');
-
-  animateDonut('total', totalDonut.value, totalDonut.offset);
-  donuts.forEach(d => animateDonut(d.id, d.value, d.offset));
-  animateBars();
-
-  // QRコード生成（共有URLでは診断結果から再生成）
-  generateQR(clinicName, area, totalScore, scores, summaryText, improvementText);
-}
 
 /* ===== 印刷用HTML生成（1部分） ===== */
-function buildPrintCopy(clinicName, dateStr, totalScore, scores, summaryText, improvementText, qrDataURL) {
+function buildPrintCopy(clinicName, dateStr, totalScore, scores, summaryText, improvementText) {
   const totalDonut = createStaticDonut(totalScore, '#1A365D', '', 110);
   const scoreDonuts = scores.map(s => createStaticDonut(s.val, s.color, s.label, 120)).join('');
   const bars = scores.map(s => createStaticScoreBar(s.label, s.val, s.color)).join('');
 
-  const qrHTML = qrDataURL
-    ? `<div class="print-qr-wrap"><img src="${qrDataURL}" width="70" height="70" alt="QR"><div class="print-qr-label">📱 スマホで結果を見る</div></div>`
-    : '';
+  const qrHTML = '';
 
   return `
   <div class="print-copy">
@@ -598,17 +453,8 @@ function printReport() {
   const totalScore = window._lastDiagnosisData.totalScore;
   const scores = window._lastDiagnosisData.scores;
 
-  const qrCanvas = document.querySelector('#qrcode-display canvas');
-  const qrImg = document.querySelector('#qrcode-display img');
-  let qrDataURL = '';
-  if (qrCanvas) {
-    qrDataURL = qrCanvas.toDataURL('image/png');
-  } else if (qrImg) {
-    qrDataURL = qrImg.src;
-  }
-
-  const copy1 = buildPrintCopy(clinicName, dateStr, totalScore, scores, summaryText, improvementText, qrDataURL);
-  const copy2 = buildPrintCopy(clinicName, dateStr, totalScore, scores, summaryText, improvementText, qrDataURL);
+  const copy1 = buildPrintCopy(clinicName, dateStr, totalScore, scores, summaryText, improvementText);
+  const copy2 = buildPrintCopy(clinicName, dateStr, totalScore, scores, summaryText, improvementText);
 
   printArea.innerHTML = copy1 + copy2;
   printArea.classList.remove('hidden');
@@ -719,8 +565,6 @@ JSONフォーマット例:
     donuts.forEach(d => animateDonut(d.id, d.value, d.offset));
     animateBars();
 
-    // QRコード生成（診断後）
-    generateQR(clinic, area, totalScore, scores, summaryText, improvementText);
 
   } catch (e) {
     document.getElementById('loading-card').classList.add('hidden');
@@ -731,10 +575,9 @@ JSONフォーマット例:
   }
 }
 
-// ページ読み込み時：保存済みAPIキー読み込み＋URLパラメータ復元
+// ページ読み込み時：保存済みAPIキー読み込み
 window.addEventListener('DOMContentLoaded', () => {
   loadSavedApiKey();
-  loadFromURLParams();
 });
 </script>
 </body>
