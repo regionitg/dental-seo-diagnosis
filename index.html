@@ -455,17 +455,18 @@ function generateQR(clinicName, area, totalScore, scores, summaryText, improveme
     urlBox.classList.remove('hidden');
 
   } else {
-    // デプロイ済み環境：現在のページURLをそのままQR化
-    // クエリパラメータに診断情報を付与して共有URLを生成
+    // デプロイ済み環境：スコア数値のみをパラメータに含めた短縮URLをQR化
+    const seoVal = scores.find(s => s.label === '検索順位')?.val || 0;
+    const reviewVal = scores.find(s => s.label === 'クチコミ・評判')?.val || 0;
+    const specialtyVal = scores.find(s => s.label === '専門性')?.val || 0;
+
     const params = new URLSearchParams({
-      clinic: clinicName,
-      area: area,
-      total: totalScore,
-      seo: scores.find(s => s.label === '検索順位')?.val || 0,
-      review: scores.find(s => s.label === 'クチコミ・評判')?.val || 0,
-      specialty: scores.find(s => s.label === '専門性')?.val || 0,
-      summary: summaryText,
-      improvement: improvementText
+      c: clinicName,
+      a: area,
+      t: totalScore,
+      s: seoVal,
+      r: reviewVal,
+      sp: specialtyVal
     });
 
     const shareURL = window.location.origin + window.location.pathname + '?' + params.toString();
@@ -476,11 +477,11 @@ function generateQR(clinicName, area, totalScore, scores, summaryText, improveme
       height: 200,
       colorDark: '#1A365D',
       colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.L
+      correctLevel: QRCode.CorrectLevel.M
     });
 
     descEl.textContent = 'QRコードをスマホで読み取ると、この診断結果ページが開きます';
-    urlBox.innerHTML = '🔗 共有URL: <a href="' + shareURL + '" target="_blank">' + decodeURIComponent(shareURL.substring(0, 80)) + (shareURL.length > 80 ? '...' : '') + '</a>';
+    urlBox.innerHTML = '🔗 共有URL: <a href="' + shareURL + '" target="_blank">' + shareURL + '</a>';
     urlBox.classList.remove('hidden');
   }
 }
@@ -488,16 +489,16 @@ function generateQR(clinicName, area, totalScore, scores, summaryText, improveme
 /* ===== URLパラメータから診断結果を復元（共有リンク対応） ===== */
 function loadFromURLParams() {
   const params = new URLSearchParams(window.location.search);
-  if (!params.has('clinic') || !params.has('total')) return;
+  if (!params.has('c') || !params.has('t')) return;
 
-  const clinicName = params.get('clinic') || '';
-  const area = params.get('area') || '';
-  const totalScore = parseInt(params.get('total')) || 0;
-  const seoScore = parseInt(params.get('seo')) || 0;
-  const reviewScore = parseInt(params.get('review')) || 0;
-  const specialtyScore = parseInt(params.get('specialty')) || 0;
-  const summaryText = params.get('summary') || '';
-  const improvementText = params.get('improvement') || '';
+  const clinicName = params.get('c') || '';
+  const area = params.get('a') || '';
+  const totalScore = parseInt(params.get('t')) || 0;
+  const seoScore = parseInt(params.get('s')) || 0;
+  const reviewScore = parseInt(params.get('r')) || 0;
+  const specialtyScore = parseInt(params.get('sp')) || 0;
+  const summaryText = '';
+  const improvementText = '';
 
   const today = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
   const dateStr = '診断日: ' + today;
